@@ -161,52 +161,53 @@ for si = 1:num_snr
         SNR_dB, BER_ZC(si), BER_mseq(si), BER_gold(si));
 end
 
-%% =========================================================================
-%  FIG. 5: RMSE SIMULATION (ZC sequence, three bandwidths)
-%% =========================================================================
-fprintf('\n--- Fig.5: RMSE Simulation (ZC sequence, 3 bandwidths) ---\n');
-BW_vec    = [30.72e6, 61.44e6, 184.32e6];
-num_BW    = length(BW_vec);
-RMSE_all  = zeros(num_BW, num_snr);
-
-for bw_idx = 1:num_BW
-    BW_cur = BW_vec(bw_idx);
-    Ts_cur = 1/BW_cur;
-    fprintf('\nBandwidth = %.2f MHz\n', BW_cur/1e6);
-
-    for si = 1:num_snr
-        SNR_dB  = SNR_dB_vec(si);
-        SNR_lin = 10^(SNR_dB/10);
-        rmse_sq_sum = 0;
-        valid_count = 0;
-
-        for trial = 1:num_trials_RMSE
-            i_tx = randi([0,Q-1]);
-
-            [d0_hat, theta_hat, success] = run_rmse_trial(...
-                S_ZC, s0_ZC, Ns_ZC, NCS_ZC,...
-                NFFT, NCP, J, d0, theta_true, lambda, r_ant, alpha_pl,...
-                L_local, L_interf, dtheta_max, Ts_cur, c_light, SNR_lin,...
-                i_tx, Q, A, angle_grid, num_seq_dbscan, eta);
-
-            if success
-                err_x = d0_hat*cos(theta_hat) - d0*cos(theta_true);
-                err_y = d0_hat*sin(theta_hat) - d0*sin(theta_true);
-                rmse_sq_sum = rmse_sq_sum + err_x^2 + err_y^2;
-                valid_count = valid_count + 1;
-            end
-        end
-
-        if valid_count > 0
-            RMSE_all(bw_idx,si) = sqrt(rmse_sq_sum / valid_count);
-        else
-            RMSE_all(bw_idx,si) = NaN;
-        end
-
-        fprintf('  SNR=%2ddB | RMSE=%.2f m (valid=%d/%d)\n',...
-            SNR_dB, RMSE_all(bw_idx,si), valid_count, num_trials_RMSE);
-    end
-end
+% %% =========================================================================
+% %  FIG. 5: RMSE SIMULATION (ZC sequence, three bandwidths)
+% %  [COMMENTED OUT — will fix after BER is finalized]
+% %% =========================================================================
+% fprintf('\n--- Fig.5: RMSE Simulation (ZC sequence, 3 bandwidths) ---\n');
+% BW_vec    = [30.72e6, 61.44e6, 184.32e6];
+% num_BW    = length(BW_vec);
+% RMSE_all  = zeros(num_BW, num_snr);
+% 
+% for bw_idx = 1:num_BW
+%     BW_cur = BW_vec(bw_idx);
+%     Ts_cur = 1/BW_cur;
+%     fprintf('\nBandwidth = %.2f MHz\n', BW_cur/1e6);
+% 
+%     for si = 1:num_snr
+%         SNR_dB  = SNR_dB_vec(si);
+%         SNR_lin = 10^(SNR_dB/10);
+%         rmse_sq_sum = 0;
+%         valid_count = 0;
+% 
+%         for trial = 1:num_trials_RMSE
+%             i_tx = randi([0,Q-1]);
+% 
+%             [d0_hat, theta_hat, success] = run_rmse_trial(...
+%                 S_ZC, s0_ZC, Ns_ZC, NCS_ZC,...
+%                 NFFT, NCP, J, d0, theta_true, lambda, r_ant, alpha_pl,...
+%                 L_local, L_interf, dtheta_max, Ts_cur, c_light, SNR_lin,...
+%                 i_tx, Q, A, angle_grid, num_seq_dbscan, eta);
+% 
+%             if success
+%                 err_x = d0_hat*cos(theta_hat) - d0*cos(theta_true);
+%                 err_y = d0_hat*sin(theta_hat) - d0*sin(theta_true);
+%                 rmse_sq_sum = rmse_sq_sum + err_x^2 + err_y^2;
+%                 valid_count = valid_count + 1;
+%             end
+%         end
+% 
+%         if valid_count > 0
+%             RMSE_all(bw_idx,si) = sqrt(rmse_sq_sum / valid_count);
+%         else
+%             RMSE_all(bw_idx,si) = NaN;
+%         end
+% 
+%         fprintf('  SNR=%2ddB | RMSE=%.2f m (valid=%d/%d)\n',...
+%             SNR_dB, RMSE_all(bw_idx,si), valid_count, num_trials_RMSE);
+%     end
+% end
 
 %% =========================================================================
 %  PLOT FIG. 4 - BER
@@ -224,21 +225,22 @@ xlim([13,20]); ylim([1e-5,1e0]);
 set(gca,'FontSize',12,'YTick',[1e-5,1e-4,1e-3,1e-2,1e-1,1e0]);
 title('Fig. 4: BER Performance','FontSize',13);
 
-%% =========================================================================
-%  PLOT FIG. 5 - RMSE
-%% =========================================================================
-figure('Position',[800,100,650,500],'Color','w');
-plot(SNR_dB_vec, RMSE_all(1,:), 'k-',   'LineWidth',1.8); hold on;
-plot(SNR_dB_vec, RMSE_all(2,:), 'k-o',  'LineWidth',1.8,'MarkerSize',8);
-plot(SNR_dB_vec, RMSE_all(3,:), 'k-x',  'LineWidth',1.8,'MarkerSize',10);
-grid on;
-xlabel('Transmit SNR [dB]','FontSize',13);
-ylabel('RMSE [m]','FontSize',13);
-legend('Bandwidth: 30.72 MHz','Bandwidth: 61.44 MHz','Bandwidth: 184.32 MHz',...
-       'Location','northeast','FontSize',11);
-xlim([13,20]); ylim([0,40]);
-set(gca,'FontSize',12);
-title('Fig. 5: RMSE Localization Performance','FontSize',13);
+% %% =========================================================================
+% %  PLOT FIG. 5 - RMSE
+% %  [COMMENTED OUT — will fix after BER is finalized]
+% %% =========================================================================
+% figure('Position',[800,100,650,500],'Color','w');
+% plot(SNR_dB_vec, RMSE_all(1,:), 'k-',   'LineWidth',1.8); hold on;
+% plot(SNR_dB_vec, RMSE_all(2,:), 'k-o',  'LineWidth',1.8,'MarkerSize',8);
+% plot(SNR_dB_vec, RMSE_all(3,:), 'k-x',  'LineWidth',1.8,'MarkerSize',10);
+% grid on;
+% xlabel('Transmit SNR [dB]','FontSize',13);
+% ylabel('RMSE [m]','FontSize',13);
+% legend('Bandwidth: 30.72 MHz','Bandwidth: 61.44 MHz','Bandwidth: 184.32 MHz',...
+%        'Location','northeast','FontSize',11);
+% xlim([13,20]); ylim([0,40]);
+% set(gca,'FontSize',12);
+% title('Fig. 5: RMSE Localization Performance','FontSize',13);
 
 fprintf('\nSimulation complete.\n');
 
@@ -591,11 +593,10 @@ function num_errors = run_ber_trial(S_cand, s0, Ns, NCS,...
     s_i = S_cand(i_tx+1,:);
     xCP = ofdm_tx(s_i, Ns, NFFT, NCP);
 
-    % Noise: account for OFDM bandwidth ratio.
-    % Signal uses Ns subcarriers out of NFFT; the RX IDFT(Ns) amplifies
-    % per-sample noise by NFFT/Ns. Scale noise_var accordingly so the
-    % labeled "Transmit SNR" matches the paper's convention.
-    noise_var = (NFFT / Ns) / SNR_lin;
+    % Noise variance: account for OFDM subcarrier ratio + CP overhead.
+    % The signal occupies Ns out of NFFT subcarriers, and the CP adds
+    % (NFFT+NCP)/NFFT overhead. Combined factor = (NFFT+NCP)/Ns.
+    noise_var = (NFFT + NCP) / (Ns * SNR_lin);
 
     [h_delay, tau_int] = gen_channel(d0, theta, lambda, r_ant, J,...
         L_local, L_interf, dtheta_max, alpha_pl, Ts, c_light, NCP);
@@ -605,8 +606,7 @@ function num_errors = run_ber_trial(S_cand, s0, Ns, NCS,...
 
     y_all = ofdm_rx(r_sig, J, Ns, NFFT, NCP);
 
-    % Single-antenna detection for BER (no spatial diversity voting)
-    % Paper Eq.(12): detection per antenna, BER is per-link performance
+    % Single-antenna detection (all antennas see same |h| so mode=no gain)
     [i_hat, ~] = detect_seq(y_all, s0, NCS, J, Q, false);
     i_hat = max(0, min(i_hat, Q-1));
 
@@ -637,8 +637,8 @@ function [d0_hat, theta_hat, success] = run_rmse_trial(...
         s_i = S_cand(i_tx_cur+1,:);
         xCP = ofdm_tx(s_i, Ns, NFFT, NCP);
 
-        % Noise: same OFDM bandwidth ratio as BER trial
-        noise_var = (NFFT / Ns) / SNR_lin;
+        % Same noise model as BER trial
+        noise_var = (NFFT + NCP) / (Ns * SNR_lin);
 
         r_sig = apply_channel(xCP, h_delay, tau_int, J, L, NFFT, NCP, noise_var);
         y_all = ofdm_rx(r_sig, J, Ns, NFFT, NCP);
