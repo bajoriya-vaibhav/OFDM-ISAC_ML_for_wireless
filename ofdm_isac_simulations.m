@@ -54,7 +54,7 @@ SNR_dB_vec    = 13:1:20;
 num_snr       = length(SNR_dB_vec);
 
 % Monte Carlo trials
-num_trials_BER  = 1000;  
+num_trials_BER  = 10000;  
 num_trials_RMSE = 1000;
 
 % DBSCAN uses 5*NCS data samples (5 sequences)
@@ -247,16 +247,27 @@ fprintf('\nSimulation complete.\n');
 %% =========================================================================
 
 %--------------------------------------------------------------------------
-% Generate m-sequence of degree n with feedback taps
+% Generate m-sequence of degree n from primitive polynomial
+% poly_exponents: all exponents of the polynomial, e.g. [10,7] for x^10+x^7+1
+% The constant term (+1) is always implicit.
+% Recurrence: for x^n + x^a + 1, s(k) = s(k-(n-a)) + s(k-n)
+% Register: reg(i) = s(k-i), so tap positions are (n-a) and n.
 %--------------------------------------------------------------------------
-function mseq = generate_mseq(n, taps)
+function mseq = generate_mseq(n, poly_exponents)
     N   = 2^n - 1;
     reg = ones(1,n);
     mseq = zeros(1,N);
+
+    % Convert polynomial exponents to register tap positions
+    % Exclude x^n term; for remaining exponents e, position = n - e
+    % Always include position n for the constant term (+1)
+    exponents = poly_exponents(poly_exponents < n);
+    tap_positions = n - exponents;         % intermediate terms
+    tap_positions = [tap_positions, n];    % constant term (+1) -> reg(n)
+
     for k=1:N
         mseq(k) = reg(end);
-        fb_bits = reg(n - taps + 1);
-        fb = mod(sum(fb_bits), 2);
+        fb = mod(sum(reg(tap_positions)), 2);
         reg = [fb, reg(1:end-1)];
     end
     mseq = 2*mseq - 1;   % {0,1} -> {-1,+1}
@@ -356,7 +367,8 @@ end
 %--------------------------------------------------------------------------
 % Sequence Detection & Demodulation — Eq.(11),(12),(13)
 %--------------------------------------------------------------------------
-function [i_hat, kappa_hat_all] = detect_seq(y_all, s0, NCS, J, Q)
+function [i_hat, kappa_hat_all] = detect_seq(y_all, s0, NCS, J, Q, use_diversity)
+    if nargin < 6, use_diversity = true; end
     Ns = length(s0);
     i_per_ant     = zeros(1,J);
     kappa_per_ant = zeros(1,J);
@@ -379,8 +391,13 @@ function [i_hat, kappa_hat_all] = detect_seq(y_all, s0, NCS, J, Q)
         kappa_per_ant(jj) = kappa_hat;
     end
 
-    % Spatial diversity: mode across all J antennas
-    i_hat        = mode(i_per_ant);
+    if use_diversity && J > 1
+        % Spatial diversity: mode across all J antennas (for RMSE/direction)
+        i_hat = mode(i_per_ant);
+    else
+        % Single antenna detection (for BER — no diversity)
+        i_hat = i_per_ant(1);
+    end
     kappa_hat_all = kappa_per_ant;
 end
 
@@ -574,7 +591,11 @@ function num_errors = run_ber_trial(S_cand, s0, Ns, NCS,...
     s_i = S_cand(i_tx+1,:);
     xCP = ofdm_tx(s_i, Ns, NFFT, NCP);
 
-    noise_var = 1 / SNR_lin;   % Transmit SNR: P_tx=1, noise_var=1/SNR
+    % Noise: account for OFDM bandwidth ratio.
+    % Signal uses Ns subcarriers out of NFFT; the RX IDFT(Ns) amplifies
+    % per-sample noise by NFFT/Ns. Scale noise_var accordingly so the
+    % labeled "Transmit SNR" matches the paper's convention.
+    noise_var = (NFFT / Ns) / SNR_lin;
 
     [h_delay, tau_int] = gen_channel(d0, theta, lambda, r_ant, J,...
         L_local, L_interf, dtheta_max, alpha_pl, Ts, c_light, NCP);
@@ -584,7 +605,9 @@ function num_errors = run_ber_trial(S_cand, s0, Ns, NCS,...
 
     y_all = ofdm_rx(r_sig, J, Ns, NFFT, NCP);
 
-    [i_hat, ~] = detect_seq(y_all, s0, NCS, J, Q);
+    % Single-antenna detection for BER (no spatial diversity voting)
+    % Paper Eq.(12): detection per antenna, BER is per-link performance
+    [i_hat, ~] = detect_seq(y_all, s0, NCS, J, Q, false);
     i_hat = max(0, min(i_hat, Q-1));
 
     rx_bits = idx_to_bits(i_hat+1,:);
@@ -614,8 +637,8 @@ function [d0_hat, theta_hat, success] = run_rmse_trial(...
         s_i = S_cand(i_tx_cur+1,:);
         xCP = ofdm_tx(s_i, Ns, NFFT, NCP);
 
-        % Noise variance from transmit SNR definition
-        noise_var = 1 / SNR_lin;
+        % Noise: same OFDM bandwidth ratio as BER trial
+        noise_var = (NFFT / Ns) / SNR_lin;
 
         r_sig = apply_channel(xCP, h_delay, tau_int, J, L, NFFT, NCP, noise_var);
         y_all = ofdm_rx(r_sig, J, Ns, NFFT, NCP);
