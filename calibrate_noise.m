@@ -1,11 +1,23 @@
-% Calibration script for OFDM-ISAC noise variance
+%why we have done this noise calibration? 
+%Bcz we are not given the noise details in the paper and we need to know the noise variance to get the BER and RMSE results as per the paper therefore we have done this noise calibration
+
 clc; clear; close all;
 
-% Run parameters
-d0 = 40; theta_true = 45*pi/180; fc = 1.8e9; c_light = 3e8; lambda = c_light/fc;
-NFFT = 2048; NCP = 256; J = 16; r_ant = lambda/2; alpha_pl = 2;
-L = 10; dtheta_max = 10*pi/180;
-L_interf = round(0.2*L); L_local = L - L_interf;
+%parameters
+d0 = 40; 
+theta_true = 45*pi/180;
+fc = 1.8e9; 
+c_light = 3e8; 
+lambda = c_light/fc;
+NFFT = 2048; 
+NCP = 256; 
+J = 16; 
+r_ant = lambda/2; 
+alpha_pl = 2;
+L = 10; 
+dtheta_max = 10*pi/180;
+L_interf = round(0.2*L);
+L_local = L - L_interf;
 q_bits = 6; Q = 2^q_bits;
 Ns_ZC = 839; NCS_ZC = 13;
 Ts = 1/30.72e6;
@@ -26,7 +38,7 @@ num_trials = 2000;
 scalars = logspace(-1, 2, 12);
 ber_results = zeros(1, length(scalars));
 
-fprintf('Calibrating noise scalar at 13dB with mode voting...\n');
+fprintf('Calibrating noise scalar at 13dB...\n');
 
 for idx = 1:length(scalars)
     scalar = scalars(idx);
