@@ -18,16 +18,25 @@ class OFDMISACSystem:
     Complete OFDM-ISAC system implementation
     """
     
-    def __init__(self, seq_type='ZC', BW=30.72e6):
+    def __init__(self, seq_type='ZC', BW=30.72e6, zc_root=None,
+                 ue_d0=None, ue_theta=None):
         """
         Initialize OFDM-ISAC system
         
         Args:
             seq_type: 'ZC', 'mseq', or 'gold'
             BW: System bandwidth [Hz]
+            zc_root: (optional) Custom ZC root index for multi-user mode.
+                     If None, uses default root=1 from initialize_sequences().
+            ue_d0: (optional) UE distance [m]. Defaults to system_params.d0.
+            ue_theta: (optional) UE angle [rad]. Defaults to system_params.theta_true.
         """
-        # Initialize sequences
-        self.seq_dict = initialize_sequences()
+        # Initialize sequences — use per-root dict when zc_root is specified
+        if zc_root is not None and seq_type == 'ZC':
+            from orthogonal_sequences import initialize_sequences_for_root
+            self.seq_dict = initialize_sequences_for_root(zc_root)
+        else:
+            self.seq_dict = initialize_sequences()
         self.seq_type = seq_type
         self.seq_info = self.seq_dict[seq_type]
         
@@ -39,13 +48,17 @@ class OFDMISACSystem:
         self.BW = BW
         self.Ts = 1 / BW  # Sampling time
         
+        # Per-UE physical parameters (defaults to global params)
+        self.ue_d0 = ue_d0 if ue_d0 is not None else d0
+        self.ue_theta = ue_theta if ue_theta is not None else theta_true
+        
         # Gray code
         self.gray_enc, self.idx_to_bits = generate_gray_code(q_bits)
         
         # Components
         self.tx = OFDMTransmitter(NFFT=self.NFFT, NCP=self.NCP)
         self.rx = OFDMReceiver(NFFT=self.NFFT, NCP=self.NCP)
-        self.channel = ChannelModel()
+        self.channel = ChannelModel(d0=self.ue_d0, theta=self.ue_theta)
         self.detector = SequenceDetector(J=J)
         self.localizer = LocalizationEstimator(J=J)
         self.clustering = ClusteringLocalizationEngine(
@@ -248,8 +261,8 @@ class OFDMISACSystem:
           4. Feed stacked received matrix to ClusteringLocalizationEngine
           5. If clustering fails → direct estimation fallback (Eq 14, 16)
         """
-        d_true_val     = float(d0)
-        theta_true_val = float(theta_true)
+        d_true_val     = float(self.ue_d0)
+        theta_true_val = float(self.ue_theta)
         tx_bits       = self.idx_to_bits[i_tx, :]
 
         # ── 1. Unified noise ────────────────────────────────────────────────

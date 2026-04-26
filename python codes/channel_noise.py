@@ -90,6 +90,68 @@ class ChannelModel:
                 h_delay[jj, l]  = beta_l * np.exp(phase) * path_loss
         
         return h_delay, tau_int
+    
+    def reset_doppler_state(self):
+        """Reset cached base channel for a new Doppler trial."""
+        self._base_h = None
+        self._base_tau = None
+        self._base_theta_l = None
+    
+    def generate_channel_doppler(self, Ts, v_ue, m_symbol, T_sym, c_light=c_light):
+        """
+        Generate channel with Doppler phase shift for symbol m.
+        
+        The base channel (fading gains, delays, angles) is generated once
+        and cached. For each subsequent symbol, the phase rotation
+        e^{j*2*pi*f_D_l*m*T_sym} is applied per path.
+        
+        Args:
+            Ts: Sampling time [s]
+            v_ue: UE velocity [m/s]
+            m_symbol: Current symbol index (0-based)
+            T_sym: OFDM symbol duration [s]
+            c_light: Speed of light [m/s]
+        
+        Returns:
+            h_delay: (J, L) channel with Doppler phase applied
+            tau_int: (L,) delay indices
+        """
+        # Generate base channel on first symbol
+        if m_symbol == 0 or self._base_h is None:
+            self._base_h = np.zeros((self.J, self.L), dtype=complex)
+            self._base_tau = np.zeros(self.L, dtype=int)
+            self._base_theta_l = np.zeros(self.L)
+            
+            tau0 = int(np.round(self.d0 / (c_light * Ts)))
+            
+            for l in range(self.L):
+                if l < self.L_local:
+                    self._base_tau[l] = tau0
+                    dl = self.d0
+                    dtheta = (2 * np.random.rand() - 1) * self.dtheta_max
+                    theta_l = self.theta + dtheta
+                else:
+                    self._base_tau[l] = tau0 + (l - self.L_local + 1)
+                    dl = self.d0 * (1 + 0.1 * np.random.rand())
+                    theta_l = (np.random.rand() - 0.5) * np.pi
+                
+                self._base_theta_l[l] = theta_l
+                beta_l = (np.random.randn() + 1j * np.random.randn()) / np.sqrt(2)
+                
+                for jj in range(self.J):
+                    phase = (-1j * 2 * np.pi / self.lambda_wave *
+                             jj * self.r_ant * np.cos(theta_l))
+                    path_loss = np.sqrt(dl ** (-self.alpha_pl))
+                    self._base_h[jj, l] = beta_l * np.exp(phase) * path_loss
+        
+        # Apply Doppler phase rotation for symbol m
+        h_delay = self._base_h.copy()
+        for l in range(self.L):
+            f_D_l = v_ue * np.cos(self._base_theta_l[l]) / self.lambda_wave
+            doppler_phase = np.exp(1j * 2 * np.pi * f_D_l * m_symbol * T_sym)
+            h_delay[:, l] *= doppler_phase
+        
+        return h_delay, self._base_tau
 
 
 class NoiseModel:

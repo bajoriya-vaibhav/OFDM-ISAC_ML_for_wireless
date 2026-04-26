@@ -56,5 +56,18 @@ min_samples = 3        # DBSCAN minimum samples parameter
 # Gray mapping parameters
 gray_mapping = True    # Use Gray mapping for 64-PSK
 
+# Multi-user (MU) parameters
+NUM_UES = 3                          # Number of UEs
+UE_DISTANCES = [40.0, 55.0, 30.0]   # Per-UE distances [m]
+UE_ANGLES_DEG = [45.0, 120.0, 75.0]  # Per-UE AoA [degrees]
+UE_ANGLES_RAD = [a * 3.14159265359 / 180 for a in UE_ANGLES_DEG]
+UE_ZC_ROOTS = [1, 3, 7]             # Per-UE Zadoff-Chu root indices
+
 # Simulation control
 verbose = True         # Print simulation progress
+
+# Mobile UE parameters
+v_ue = 30.0                          # UE velocity [m/s] (~108 km/h)
+BW_default = 30.72e6                 # Default bandwidth for T_sym calc [Hz]
+T_sym = (NFFT + NCP) / BW_default   # OFDM symbol duration [s] ≈ 75 μs
+M_doppler = 32                       # Slow-time symbols for Doppler FFT

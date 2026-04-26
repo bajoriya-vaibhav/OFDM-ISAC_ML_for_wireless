@@ -172,6 +172,30 @@ def initialize_sequences():
     return sequences_dict
 
 
+def initialize_sequences_for_root(zc_root=1):
+    """
+    Initialize a ZC-only sequence dictionary with a specific root index.
+    Used for multi-user setups where each UE gets a different ZC root.
+    
+    Args:
+        zc_root: Zadoff-Chu root index (must be coprime to Ns_ZC=839)
+    
+    Returns:
+        seq_dict: Dictionary with a single 'ZC' entry for this root
+    """
+    s0 = generate_zadoff_chu(Ns_ZC, u=zc_root)
+    S = make_candidate_sequences(s0, NCS_ZC, Q)
+    return {
+        'ZC': {
+            's0': s0,
+            'S': S,
+            'Ns': Ns_ZC,
+            'NCS': NCS_ZC,
+            'name': f'Zadoff-Chu (root={zc_root})'
+        }
+    }
+
+
 if __name__ == "__main__":
     # Test sequence generation
     print("Testing Orthogonal Sequence Generation...")
